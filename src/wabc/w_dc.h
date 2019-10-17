@@ -404,7 +404,8 @@ namespace wabc
 		void fill(const RECT &rt, color_type clr);
 		void fill(LONG x, LONG y, LONG w, LONG h, color_type clr)
 		{
-			fill(rect(x,y,x+w,y+h),clr);
+			const RECT rt = { x, y, x + w, y + h };
+			fill(rt,clr);
 		}
 
 		void zero()
@@ -416,15 +417,17 @@ namespace wabc
 		void alpha(uint8 nAlphaValue, color_type clr, const RECT &rt);
 		void alpha(uint8 nAlphaValue, color_type clr, LONG x,LONG y,LONG w,LONG h)
 		{
-			alpha(nAlphaValue, clr, rect(x,y,x+w,y+h));
+			const RECT rt = { x, y, x + w, y + h };
+			alpha(nAlphaValue, clr, rt);
 		}
 
 		void transalpha(uint8 nAlphaValue, color_type clr, color_type clrTrans);
-		void transalpha(uint8 nAlphaValue, color_type clr, const rect &rt, color_type clrTrans);
+		void transalpha(uint8 nAlphaValue, color_type clr, const RECT &rt, color_type clrTrans);
 		void transalpha(uint8 nAlphaValue, color_type clr, 
 			LONG x,LONG y,LONG w,LONG h, color_type clrTrans)
 		{
-			transalpha(nAlphaValue, clr, rect(x,y,x+w,y+h),clrTrans);
+			const RECT rt = { x, y, x + w, y + h };
+			transalpha(nAlphaValue, clr, rt,clrTrans);
 		}
 
 		size_t address(const POINT &pt)const

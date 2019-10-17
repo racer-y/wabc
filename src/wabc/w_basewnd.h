@@ -973,9 +973,6 @@ namespace wabc
 	class basewnd : public _basewnd
 	{
 	public:
-#ifdef _DEBUG
-		HWND	m_debug_hWnd;
-#endif
 		basewnd() { m_hWnd = 0; }
 		virtual ~basewnd(){}
 	};

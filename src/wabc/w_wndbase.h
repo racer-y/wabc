@@ -222,7 +222,7 @@ namespace wabc
 		HWND create(HWND hParent, DWORD nStyle, DWORD dwStyleEx = 0, 
 			const wchar_t *lpszCaption = 0, size_t id = 0, const RECT *rt = 0);
 		
-		HWND create(const wchar_t *lpszCaption, DWORD nStyle= WS_OVERLAPPEDWINDOW, DWORD dwStyleEx = 0, 
+		HWND create(const wchar_t *lpszCaption, DWORD nStyle = WS_VISIBLE|WS_OVERLAPPEDWINDOW, DWORD dwStyleEx = 0,
 			const RECT *rt = 0, HMENU hMenu= 0);
 
 		void destroy();
@@ -247,8 +247,6 @@ namespace wabc
 	public:
 
 		virtual void before_create(CREATESTRUCT &cs);
-		virtual void after_create(){}
-		virtual void after_destroy(){}
 	};
 
 	// --------------------------------------------------------------------

@@ -21,7 +21,7 @@ namespace wabc
 	// wndproc::msg_guard
 	// --------------------------------------------------------------------
 
-	wndproc::msg_guard::msg_guard(_msg_struct &m, const mapslot_node *h) : msg(m), slot_head(h)
+	wndproc::msg_guard::msg_guard(_msg_struct &m) : msg(m)
 	{
 		assert(!msg.next_slot->cur_msg || &msg < msg.next_slot->cur_msg);
 		msg.next_msg = msg.next_slot->cur_msg;
@@ -32,7 +32,7 @@ namespace wabc
 
 	wndproc::msg_guard::~msg_guard()
 	{
-		if (msg.next_slot != slot_head)
+		if (msg.wnd)
 		{
 			assert(msg.next_slot->cur_msg == &msg);
 			msg.next_slot->cur_msg = msg.next_msg;
@@ -76,7 +76,7 @@ namespace wabc
 				}
 			}
 
-			msg_guard g(msg, slot_last);
+			msg_guard g(msg);
 
 			const msgmap_t &v2 = *pr.first;
 			if (v2.invoke(v2, p->wnd, msg))
@@ -89,34 +89,24 @@ namespace wabc
 
 	bool wndproc::process_WM_CREATE(_msg_struct &msg)
 	{
+		typedef std::pair<const msgmap_t *, const msgmap_t *> pair_type;
 		const mapslot_node *slot_last = &msg.wnd->m_mapslot_head;
-		msg.next_slot->cur_msg = &msg;
+		msgmap_t v;
+		v.message = msg.message;
 
-		msg.wnd->after_create();
-
-		// 若这时候msg.wnd被干掉了，msg.next_slot会在wndbase的析构函数里指向链表头
-		if (msg.next_slot != slot_last)
-			process_WM(msg);
-
-		// 永远返回false，对于超类化的窗口来说，其被替换的窗口过程或许重载了这个消息
-		return false;
-	}
-
-	// --------------------------------------------------------------------
-
-	bool wndproc::process_WM_DESTROY(_msg_struct &msg)
-	{
-		const mapslot_node *slot_last = &msg.wnd->m_mapslot_head;
-		msg.next_slot->cur_msg = &msg;
-
-		msg.wnd->after_destroy();
-
-		// 若这时候msg.wnd被干掉了，msg.next_slot会在wndbase的析构函数里指向链表头
-		if (msg.next_slot != slot_last)
-			process_WM(msg);
-
-		// 永远返回false，对于超类化的窗口来说，其被替换的窗口过程或许重载了这个消息
-		return false;
+		// 从后往前遍历，万一在遍历的过程中，p被干掉了，立刻crash
+		for (mapslot *p = static_cast<mapslot *>(msg.wnd->m_mapslot_head.prior); 
+			p != slot_last; 
+			p = static_cast<mapslot *>(p->prior))
+		{
+			pair_type pr = std::equal_range(p->entries, p->entries + p->entries_count, v);
+			if (pr.first != pr.second)
+			{
+				const msgmap_t &v2 = *pr.first;
+				v2.invoke(v2, p->wnd, msg);
+			}
+		}
+		return true;
 	}
 
 	// --------------------------------------------------------------------
@@ -125,9 +115,6 @@ namespace wabc
 	{
 		msg.wnd->free_thunk();
 		msg.wnd->m_hWnd = 0;
-#ifdef _DEBUG
-		msg.wnd->m_debug_hWnd = 0;
-#endif
 		const bool ret = process_WM(msg);
 
 		// 永远返回false，对于超类化的窗口来说，其被替换的窗口过程或许重载了这个消息
@@ -211,7 +198,7 @@ namespace wabc
 					}
 				}
 
-				msg_guard g(msg, slot_last);
+				msg_guard g(msg);
 				const msgmap_t &v2 = *pr.first;
 				const bool b = v2.invoke(v2, p->wnd, msg);
 				if (b)
@@ -275,10 +262,6 @@ namespace wabc
 
 			pWnd->m_hWnd = hWnd;
 
-#ifdef _DEBUG
-			pWnd->m_debug_hWnd = hWnd;
-#endif
-
 			WNDPROC proc = pWnd->create_thunk(cs.lpszClass == MAKEINTATOM(g_app->defclass) ? &wndproc::wnd_main : &wndproc::scwnd_main);
 			SetWindowLongPtr(hWnd, GWL_WNDPROC, (LONG)proc);
 
@@ -316,9 +299,6 @@ namespace wabc
 			msg.result = ::DefWindowProc(msg.hWnd, msg.message, msg.wParam, msg.lParam);
 		}
 
-#ifdef _DEBUG
-		assert(msg.wnd == 0 ||msg.wnd->m_hWnd == msg.wnd->m_debug_hWnd);
-#endif
 		return msg.result;
 	}
 
@@ -346,15 +326,15 @@ namespace wabc
 				goto __default;
 		}
 
+		if (msg.message == WM_CREATE)
+			msg.result = ::CallWindowProc(old_proc, msg.hWnd, msg.message, msg.wParam, msg.lParam);
+
 		if (!process(msg))
 		{
 		__default:
 			msg.result = ::CallWindowProc(old_proc, msg.hWnd, msg.message, msg.wParam, msg.lParam);
 		}
 
-#ifdef _DEBUG
-		assert(msg.wnd == 0 || msg.wnd->m_hWnd == msg.wnd->m_debug_hWnd);
-#endif
 		return msg.result;
 	}
 
@@ -369,9 +349,6 @@ namespace wabc
 		dialog::create_param &param = *reinterpret_cast<dialog::create_param *>(lParam);
 
 		param.dlg->m_hWnd = hWnd;
-#ifdef _DEBUG
-		param.dlg->m_debug_hWnd = hWnd;
-#endif
 
 		DLGPROC proc = (DLGPROC)param.dlg->create_thunk(reinterpret_cast<WNDPROC>(&wndproc::dlg_main));
 		SetWindowLongPtr(hWnd, DWL_DLGPROC, (LONG)proc);
@@ -379,9 +356,7 @@ namespace wabc
 		param.dlg->dialog_create(param);
 		if (param.dlg->m_tab_ctrls.size() > 0)
 			::SetFocus(param.dlg->m_tab_ctrls[0]);
-
-		param.dlg->after_create();
-
+		
 		return proc(HWND(param.dlg), message, wParam, lParam);
 	}
 
@@ -432,10 +407,10 @@ namespace wabc
 
 		static special_msgs items[] = {
 			WM_CREATE, wndproc::process_WM_CREATE,
-			WM_DESTROY, wndproc::process_WM_DESTROY,
 			WM_DRAWITEM, wndproc::process_WM_DRAWITEM,
 			WM_NOTIFY, wndproc::process_WM_NOTIFY,
 			WM_NCDESTROY, wndproc::process_WM_NCDESTROY,
+			WM_INITDIALOG, wndproc::process_WM_CREATE,
 			WM_COMMAND, wndproc::process_WM_COMMAND,
 			WM_SYSCOMMAND, wndproc::process_WM_SYSCOMMAND,
 			WM_TIMER, wndproc::process_WM_TIMER,
@@ -508,7 +483,7 @@ namespace wabc
 			if (pr.first != pr.second)
 			{
 				// 每一个slot都要检查
-				msg_guard g(msg1, slot_last);
+				msg_guard g(msg1);
 				const msgmap_t &v2 = *pr.first;
 				v2.invoke(v2, p->wnd, reinterpret_cast<msg_struct &>(msg1));
 			}

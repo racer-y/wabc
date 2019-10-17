@@ -899,7 +899,7 @@ namespace wabc
 	// --------------------------------------------------------------------
 
 	void bitmap32::transalpha(uint8 nAlphaValue, color_type clr, 
-		const rect &rtA, color_type clrTrans)
+		const RECT &rtA, color_type clrTrans)
 	{
 		const uint beta= 255 - nAlphaValue;
 		//const DWORD r= clr.r * nAlphaValue;

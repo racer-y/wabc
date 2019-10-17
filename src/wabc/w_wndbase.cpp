@@ -253,8 +253,8 @@ namespace wabc
 		}
 		else
 		{
-			cs.x = CW_USEDEFAULT;
-			cs.y = CW_USEDEFAULT;
+			cs.cx = cs.x = CW_USEDEFAULT;
+			cs.cy = cs.y = CW_USEDEFAULT;
 		}
 
 		return create(cs);
@@ -438,9 +438,6 @@ namespace wabc
 		assert(m_sc.old_proc == 0 && m_sc.class_name == 0);
 
 		m_hWnd = hWnd;
-#ifdef _DEBUG
-		m_debug_hWnd = hWnd;
-#endif
 		WNDPROC proc = create_thunk(wndproc::scwnd_main);
 		m_sc.old_proc = (WNDPROC)SetWindowLongPtr(hWnd, GWL_WNDPROC, (LONG)proc);
 		return m_sc.old_proc;
@@ -459,9 +456,6 @@ namespace wabc
 			free_thunk();
 			m_hWnd = 0;
 			m_sc.old_proc = 0;
-#ifdef _DEBUG
-			m_debug_hWnd = 0;
-#endif
 		}
 	}
 

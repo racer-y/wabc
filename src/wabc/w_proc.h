@@ -33,9 +33,8 @@ namespace wabc
 		struct msg_guard
 		{
 			_msg_struct &msg;
-			const mapslot_node *slot_head;
 
-			msg_guard(_msg_struct &m, const mapslot_node *h);
+			explicit msg_guard(_msg_struct &m);
 
 			~msg_guard();
 		};
@@ -44,7 +43,6 @@ namespace wabc
 		static bool process_WM(_msg_struct &msg, WPARAM wParam = 0, size_t no_flag = 0);
 
 		static bool process_WM_CREATE(_msg_struct &msg);
-		static bool process_WM_DESTROY(_msg_struct &msg);
 		static bool process_WM_NCDESTROY(_msg_struct &msg);
 		static bool process_WM_COMMAND(_msg_struct &msg);
 		static bool process_WM_SYSCOMMAND(_msg_struct &msg);
