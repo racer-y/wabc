@@ -20,7 +20,7 @@
 #include "w_wndbase.h"
 //#include "w_typetraits.h"
 
-#define WABC_DECLARE_MSG_MAPEX(N)	private: wabc::mapslot	m_mapslot_wabc[N];
+#define WABC_DECLARE_MSG_MAPEX(N)	private: wabc::mapslot_ptr<wabc::mapslot>	m_mapslot_wabc[N];
 #define WABC_DECLARE_MSG_MAP()	WABC_DECLARE_MSG_MAPEX(1)
 
 #define WABC_BEGIN_MSG_MAP(thisClass) \
@@ -31,7 +31,7 @@
 	};  \
 	enum{ slot_count= sizeof(m_mapslot_wabc)/sizeof(m_mapslot_wabc[0]) }; \
 	__wabc_static_assert(slotIndex < slot_count); \
-	(mapTo).map_msg<map_class>(m_mapslot_wabc + (slotIndex), &(mapFrom), entries, countof(entries)); }
+	(mapTo).map_msg<map_class>(m_mapslot_wabc[slotIndex], &(mapFrom), entries, countof(entries)); }
 
 #define WABC_END_MSG_MAP() WABC_END_MSG_MAPEX(*this, *this, 0)
 

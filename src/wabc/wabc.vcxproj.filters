@@ -57,6 +57,15 @@
     <ClCompile Include="w_file.cpp">
       <Filter>头文件</Filter>
     </ClCompile>
+    <ClCompile Include="w_menu.cpp">
+      <Filter>头文件</Filter>
+    </ClCompile>
+    <ClCompile Include="w_thread.cpp">
+      <Filter>头文件</Filter>
+    </ClCompile>
+    <ClCompile Include="w_registry.cpp">
+      <Filter>头文件</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
     <ClInclude Include="w_std.h">
@@ -99,6 +108,21 @@
       <Filter>头文件</Filter>
     </ClInclude>
     <ClInclude Include="w_convert.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="carray.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="w_menu.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="w_thread.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="w_registry.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+    <ClInclude Include="w_inifile.h">
       <Filter>头文件</Filter>
     </ClInclude>
   </ItemGroup>

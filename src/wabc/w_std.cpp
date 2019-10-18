@@ -1,4 +1,5 @@
 #include "w_std.h"
+#include "w_vmem.h"
 #include <assert.h>
 
 namespace wabc
@@ -7,6 +8,33 @@ namespace wabc
 	{
 		const BOOL ret = ::SetWindowPos(hWnd, HWND_TOP, x, y, w, h,
 			SWP_NOACTIVATE | SWP_NOOWNERZORDER);
+	}
+
+	static vmem & instance()
+	{
+		static vmem g_vmem;
+		return g_vmem;
+	}
+
+	// --------------------------------------------------------------------
+
+	void * alloc(size_t new_size)
+	{
+		return instance().alloc(new_size);
+	}
+
+	// --------------------------------------------------------------------
+
+	void * realloc(void *p, size_t new_size)
+	{
+		return instance().realloc(p, new_size);
+	}
+
+	// --------------------------------------------------------------------
+
+	void free(void *p)
+	{
+		instance().free(p);
 	}
 
 	// --------------------------------------------------------------------
@@ -43,6 +71,9 @@ namespace wabc
 
 		return h.lpMsgBuf ? string((LPTSTR)h.lpMsgBuf) : string();
 	}
+
+	// --------------------------------------------------------------------
+
 
 	// --------------------------------------------------------------------
 	// strcut rect

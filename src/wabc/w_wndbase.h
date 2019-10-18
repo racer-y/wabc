@@ -91,8 +91,7 @@ namespace wabc
 		bool inherited();
 
 		wndbase *wnd;
-		mapslot_node * next_slot;
-		_msg_struct *next_msg;
+		mapslot_node * cur_slot;
 	};
 
 	// --------------------------------------------------------------------
@@ -122,12 +121,19 @@ namespace wabc
 	struct mapslot_node
 	{
 		mapslot_node *next, *prior;
-		_msg_struct *cur_msg;
+		volatile LONG ref_count;
 
-		mapslot_node() : cur_msg(0)
+		mapslot_node() : ref_count(1)
 		{
 			next = prior = this;
 		}
+
+		~mapslot_node()
+		{
+			prior->next = next;
+			next->prior = prior;
+		}
+
 
 		// 插入到链表头
 		void link_before(mapslot_node *h)
@@ -179,14 +185,57 @@ namespace wabc
 				uint16	no_WM_NOTIFY : 1;
 				uint16	no_WM_WTL : 1;
 				uint16	no_PROCMSG : 1;
-
 			};
 		};
 
-		~mapslot(){ unmap(); }
-
 		void assign(void *map_to, const msgmap_t *entries, size_t n);
 		void unmap();
+	};
+
+	// --------------------------------------------------------------------
+
+	template< typename T>
+	class mapslot_ptr
+	{
+		T * m_p;
+
+		friend class wndproc;
+
+		mapslot_ptr & operator=(const mapslot_ptr<T> &);
+	public:
+		mapslot_ptr()
+		{ 
+			m_p = (T *)wabc::alloc(sizeof(T));
+			new (m_p)T();
+		}
+
+		explicit mapslot_ptr(T *p) :m_p(p)
+		{
+			++m_p->ref_count;
+		}
+
+		mapslot_ptr(const mapslot_ptr<T> &rhs) : m_p(rhs.m_p)
+		{
+			++m_p->ref_count;
+		}
+
+		~mapslot_ptr()
+		{
+			if (--m_p->ref_count == 0)
+			{
+				m_p->~T();
+				wabc::free(m_p);
+			}
+		}
+
+		T * operator->() { return m_p; }
+		const T * operator->()const { return m_p; }
+
+		T & operator *(){ return *m_p; }
+		const T & operator *()const{ return *m_p; }
+
+		operator T *(){ return m_p; }
+		operator const mapslot *()const{ return m_p; }
 	};
 
 	// --------------------------------------------------------------------
@@ -195,7 +244,7 @@ namespace wabc
 	{
 		uint8	*m_thunk;
 		int m_hook_procmsg_count;
-		mapslot_node	m_mapslot_head;
+		mapslot_ptr<mapslot_node>	m_mapslot_head;
 
 		friend class wndproc;
 
@@ -214,7 +263,7 @@ namespace wabc
 		void map_msg(mapslot *slot, W *map_to, const msgmap_t *entries, size_t n)
 		{
 			slot->assign(map_to, entries, n);
-			slot->link_before(&m_mapslot_head);
+			slot->link_before(m_mapslot_head);
 		}
 
 		HWND create(const CREATESTRUCT &cs);
@@ -366,8 +415,8 @@ namespace wabc
 }
 
 #define WABC_DECLARE_HOOK_GETMSG() private : getmsg_hooker m_wabc_getmsg_hooker;
-#define WABC_HOOK_GETMSG() m_wabc_getmsg_hooker.hook(m_mapslot_wabc);
-#define WABC_HOOK_GETMSGEX(N) {__wabc_static_assert(N<countof(m_mapslot_wabc)); m_wabc_getmsg_hooker.hook(m_mapslot_wabc+N);}
+#define WABC_HOOK_GETMSG() m_wabc_getmsg_hooker.hook(m_mapslot_wabc[0]);
+#define WABC_HOOK_GETMSGEX(N) {__wabc_static_assert(N<countof(m_mapslot_wabc)); m_wabc_getmsg_hooker.hook(m_mapslot_wabc[N]);}
 #define WABC_UNHOOK_GETMSG() m_wabc_getmsg_hooker.unhook();
 
 //#define WABC_DECLARE_HOOK_GETMSG(thisClass, msg) private: \

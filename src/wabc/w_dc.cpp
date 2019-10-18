@@ -1130,7 +1130,7 @@ namespace wabc
 			::ReleaseDC(m_hWnd, m_hdc);
 
 		if (m_objects)
-			::free(m_objects);
+			wabc::free(m_objects);
 	}
 
 	// --------------------------------------------------------------------
@@ -1140,7 +1140,7 @@ namespace wabc
 		if (m_object_count >= m_object_capacity)
 		{
 			m_object_capacity = (m_object_capacity + 1) * 2;
-			m_objects = (HGDIOBJ*)::realloc(m_objects, m_object_capacity * sizeof(m_objects[0]));
+			m_objects = (HGDIOBJ*)wabc::realloc(m_objects, m_object_capacity * sizeof(m_objects[0]));
 		}
 		m_objects[m_object_count++] = ::SelectObject(m_hdc, h);
 	}
@@ -1355,7 +1355,7 @@ namespace wabc
 
 	drawtxt::~drawtxt()
 	{
-		::free(m_width_of_chars);
+		wabc::free(m_width_of_chars);
 	}
 
 	// --------------------------------------------------------------------
@@ -1373,7 +1373,7 @@ namespace wabc
 		m_visible_width= 0;
 		m_visible_size= 0; 
 
-		m_width_of_chars= (int *)::realloc(m_width_of_chars, n * sizeof(m_width_of_chars[0]));
+		m_width_of_chars= (int *)wabc::realloc(m_width_of_chars, n * sizeof(m_width_of_chars[0]));
 
 		const TEXTMETRIC tm = m_gc.text_metrics();
 			

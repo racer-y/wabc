@@ -84,15 +84,19 @@
     <ClCompile Include="w_dialog.cpp" />
     <ClCompile Include="w_dlgresc.cpp" />
     <ClCompile Include="w_file.cpp" />
+    <ClCompile Include="w_menu.cpp" />
     <ClCompile Include="w_msg.cpp" />
     <ClCompile Include="w_proc.cpp" />
+    <ClCompile Include="w_registry.cpp" />
     <ClCompile Include="w_std.cpp" />
     <ClCompile Include="w_stdctrl.cpp" />
+    <ClCompile Include="w_thread.cpp" />
     <ClCompile Include="w_thunk.cpp" />
     <ClCompile Include="w_vmem.cpp" />
     <ClCompile Include="w_wndbase.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="carray.h" />
     <ClInclude Include="w_basewnd.h" />
     <ClInclude Include="w_comctrl.h" />
     <ClInclude Include="w_convert.h" />
@@ -100,10 +104,14 @@
     <ClInclude Include="w_dialog.h" />
     <ClInclude Include="w_dlgresc.h" />
     <ClInclude Include="w_file.h" />
+    <ClInclude Include="w_inifile.h" />
+    <ClInclude Include="w_menu.h" />
     <ClInclude Include="w_msg.h" />
     <ClInclude Include="w_proc.h" />
+    <ClInclude Include="w_registry.h" />
     <ClInclude Include="w_std.h" />
     <ClInclude Include="w_stdctrl.h" />
+    <ClInclude Include="w_thread.h" />
     <ClInclude Include="w_thunk.h" />
     <ClInclude Include="w_vmem.h" />
     <ClInclude Include="w_wndbase.h" />

@@ -22,36 +22,6 @@
 #include <process.h>
 #include "w_std.h"
 
-inline LONG int_atomic_inc(volatile LONG & x)
-{ return ::InterlockedIncrement( &x ); }
-
-inline LONG int_atomic_dec(volatile LONG & x)
-{ return ::InterlockedDecrement(&x); }
-
-inline LONG int_atomic_get(volatile LONG & x)
-{ 
-	LONG result= 0;
-	::InterlockedExchange(&result,x); 
-	return result;
-}
-
-// cas
-inline LONG cmpxchg(volatile LONG *dest, const LONG & compare, const LONG & new_)
-{ 
-#if _MSC_VER >= 1300
-	return ::InterlockedCompareExchange( dest, new_, compare );
-#else
-	return (LONG)::InterlockedCompareExchange( (PVOID *)dest, (PVOID)(new_), (PVOID)(compare) );
-#endif
-	//		if( *dest == compare)
-	//		{  
-	//			const LONG old= *dest;
-	//			*dest= new_; 
-	//			return old;
-	//		}
-	//		return *dest;
-}
-
 namespace wabc
 {
 	// --------------------------------------------------------------------

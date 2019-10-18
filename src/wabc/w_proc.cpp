@@ -6,6 +6,8 @@
 
 namespace wabc
 {
+	typedef mapslot_ptr<mapslot_node> head_guard;
+
 	// --------------------------------------------------------------------
 
 	static inline bool compare_by_notify(const msgmap_t &lhs, const msgmap_t &rhs)
@@ -18,28 +20,6 @@ namespace wabc
 	}
 
 	// --------------------------------------------------------------------
-	// wndproc::msg_guard
-	// --------------------------------------------------------------------
-
-	wndproc::msg_guard::msg_guard(_msg_struct &m) : msg(m)
-	{
-		assert(!msg.next_slot->cur_msg || &msg < msg.next_slot->cur_msg);
-		msg.next_msg = msg.next_slot->cur_msg;
-		msg.next_slot->cur_msg = &msg;
-	}
-
-	// --------------------------------------------------------------------
-
-	wndproc::msg_guard::~msg_guard()
-	{
-		if (msg.wnd)
-		{
-			assert(msg.next_slot->cur_msg == &msg);
-			msg.next_slot->cur_msg = msg.next_msg;
-		}
-	}
-
-	// --------------------------------------------------------------------
 	// wndproc
 	// --------------------------------------------------------------------
 
@@ -49,38 +29,44 @@ namespace wabc
 		msgmap_t v;
 		v.message = msg.message;
 		v.wParam = wParam;
-		
-		const mapslot_node *slot_last = &msg.wnd->m_mapslot_head;
-		mapslot *p;
-		while ((p = static_cast<mapslot *>(msg.next_slot)) != slot_last)
-		{
-			msg.next_slot = p->next;
 
-			pair_type pr = std::equal_range(p->entries, p->entries + p->entries_count, v);
+		head_guard head(msg.wnd->m_mapslot_head);
+		while (msg.cur_slot != head.m_p)
+		{
+			mapslot &slot = static_cast<mapslot &>(*msg.cur_slot);
+			pair_type pr = std::equal_range(slot.entries, slot.entries + slot.entries_count, v);
 			if (pr.first == pr.second)
 			{
 				// FIMXE -注意'mapslot::count'的内存布局，见"struct mapslot"的定义
-				if (wParam == 0 || (p->count & no_flag))
+				if (wParam == 0 || (slot.count & no_flag))
+				{
+					msg.cur_slot = slot.next;
 					continue;
+				}
 
 				// 给 message range 一个处理的机会
 				v.wParam = 0;
-				pr = std::equal_range(p->entries, pr.first, v);
+				pr = std::equal_range(slot.entries, pr.first, v);
 				v.wParam = wParam;
 				if (pr.first == pr.second)
 				{
 					// 标记位在'count'的高16位字节
 					assert(no_flag >= 64 * 1024);
-					p->count |= no_flag;
+					slot.count |= no_flag;
+					msg.cur_slot = slot.next;
 					continue;
 				}
 			}
 
-			msg_guard g(msg);
+			mapslot_ptr<mapslot> g(&slot);
 
 			const msgmap_t &v2 = *pr.first;
-			if (v2.invoke(v2, p->wnd, msg))
+			if (v2.invoke(v2, slot.wnd, msg))
 				return true;
+
+			assert(msg.cur_slot == &slot);
+			msg.cur_slot = slot.next;
+			assert(msg.cur_slot->next != msg.cur_slot);
 		}
 		return false;
 	}
@@ -90,21 +76,28 @@ namespace wabc
 	bool wndproc::process_WM_CREATE(_msg_struct &msg)
 	{
 		typedef std::pair<const msgmap_t *, const msgmap_t *> pair_type;
-		const mapslot_node *slot_last = &msg.wnd->m_mapslot_head;
 		msgmap_t v;
 		v.message = msg.message;
 
-		// 从后往前遍历，万一在遍历的过程中，p被干掉了，立刻crash
-		for (mapslot *p = static_cast<mapslot *>(msg.wnd->m_mapslot_head.prior); 
-			p != slot_last; 
-			p = static_cast<mapslot *>(p->prior))
+		head_guard head(msg.wnd->m_mapslot_head);
+		while (msg.cur_slot != head.m_p)
 		{
-			pair_type pr = std::equal_range(p->entries, p->entries + p->entries_count, v);
+			mapslot &slot = static_cast<mapslot &>(*msg.cur_slot);
+			pair_type pr = std::equal_range(slot.entries, slot.entries + slot.entries_count, v);
 			if (pr.first != pr.second)
 			{
+				mapslot_ptr<mapslot> g(&slot);
+
 				const msgmap_t &v2 = *pr.first;
-				v2.invoke(v2, p->wnd, msg);
+				if (v2.invoke(v2, slot.wnd, msg))
+					return true;
+
+				assert(msg.cur_slot == &slot);
+				msg.cur_slot = slot.prior;
+				assert(msg.cur_slot->prior != msg.cur_slot);
 			}
+			else
+				msg.cur_slot = slot.prior;
 		}
 		return true;
 	}
@@ -171,38 +164,45 @@ namespace wabc
 			assert(nh.idFrom);
 			v.ctrlid = nh.idFrom;
 			
-			const mapslot_node *slot_last = &msg.wnd->m_mapslot_head;
-			mapslot *p;
-			while ((p = static_cast<mapslot *>(msg.next_slot)) != slot_last)
+			head_guard head(msg.wnd->m_mapslot_head);
+			while (msg.cur_slot != head.m_p)
 			{
-				msg.next_slot = p->next;
-				pair_type pr = std::equal_range(p->entries, p->entries + p->entries_count, v, &compare_by_notify);
+				mapslot &slot = static_cast<mapslot &>(*msg.cur_slot);
+				pair_type pr = std::equal_range(slot.entries, slot.entries + slot.entries_count, v, &compare_by_notify);
 
 				if (pr.first == pr.second)
 				{
 					// 也许映射了整个WM_NOTIFY消息
-					if (p->no_WM_NOTIFY != 0)
+					if (slot.no_WM_NOTIFY != 0)
+					{
+						msg.cur_slot = slot.next;
 						continue;
+					}
 
 					v.wParam = 0;
 					v.ctrlid = 0;
 
-					pr = std::equal_range(p->entries, pr.first, v);
+					pr = std::equal_range(slot.entries, pr.first, v);
 
 					v.wParam = nh.code;
 					v.ctrlid = nh.idFrom;
 					if (pr.first == pr.second)
 					{
-						p->no_WM_NOTIFY = 1;
+						slot.no_WM_NOTIFY = 1;
+						msg.cur_slot = slot.next;
 						continue;
 					}
 				}
 
-				msg_guard g(msg);
+				mapslot_ptr<mapslot> g(&slot);
+
 				const msgmap_t &v2 = *pr.first;
-				const bool b = v2.invoke(v2, p->wnd, msg);
-				if (b)
+				if (v2.invoke(v2, slot.wnd, msg))
 					return true;
+
+				assert(msg.cur_slot == &slot);
+				msg.cur_slot = slot.next;
+				assert(msg.cur_slot->next != msg.cur_slot);
 			}
 		}
 		return false;
@@ -283,8 +283,7 @@ namespace wabc
 		msg.lParam = lParam;
 		msg.result = 0;
 
-		msg.next_slot = wnd.m_mapslot_head.next;
-		msg.next_msg = 0;
+		msg.cur_slot = wnd.m_mapslot_head->next;
 		msg.wnd = &wnd;
 
 		if (wnd.m_hook_procmsg_count > 0)
@@ -316,8 +315,7 @@ namespace wabc
 		msg.lParam = lParam;
 		msg.result = 0;
 
-		msg.next_slot = wnd.m_mapslot_head.next;
-		msg.next_msg = 0;
+		msg.cur_slot = wnd.m_mapslot_head->next;
 		msg.wnd = &wnd;
 
 		if (wnd.m_hook_procmsg_count > 0)
@@ -375,8 +373,7 @@ namespace wabc
 		msg.result = 0;
 
 		msg.wnd = &wnd;
-		msg.next_msg = 0;
-		msg.next_slot = wnd.m_mapslot_head.next;
+		msg.cur_slot = wnd.m_mapslot_head->next;
 
 		if (wnd.m_hook_procmsg_count > 0)
 		{
@@ -470,25 +467,31 @@ namespace wabc
 		mh.wParam = PM_REMOVE;
 		mh.lParam = LPARAM(&m);
 
-		const mapslot_node *slot_last = &msg1.wnd->m_mapslot_head;
-		mapslot *p;
-		while ((p = static_cast<mapslot *>(msg1.next_slot)) != slot_last)
+		head_guard head(msg1.wnd->m_mapslot_head);
+		while (msg1.cur_slot != head.m_p)
 		{
-			msg1.next_slot = p->next;
-
-			if (p->no_PROCMSG != 0)
+			mapslot &slot = static_cast<mapslot &>(*msg.cur_slot);
+			if (slot.no_PROCMSG != 0)
 				continue;
 
-			pair_type pr = std::equal_range(p->entries, p->entries + p->entries_count, v);
+			pair_type pr = std::equal_range(slot.entries, slot.entries + slot.entries_count, v);
 			if (pr.first != pr.second)
 			{
 				// 每一个slot都要检查
-				msg_guard g(msg1);
+				mapslot_ptr<mapslot> g(&slot);
 				const msgmap_t &v2 = *pr.first;
-				v2.invoke(v2, p->wnd, reinterpret_cast<msg_struct &>(msg1));
+				v2.invoke(v2, slot.wnd, reinterpret_cast<msg_struct &>(msg1));
+
+				assert(msg.cur_slot == &slot);
+				msg1.cur_slot = slot.next;
+				assert(msg.cur_slot->next != msg.cur_slot);
+
 			}
 			else
-				p->no_PROCMSG = 1;
+			{
+				msg1.cur_slot = slot.next;
+				slot.no_PROCMSG = 1;
+			}
 		}
 		return msg1.wnd ? true : false;
 	}
@@ -499,11 +502,11 @@ namespace wabc
 
 	bool _msg_struct::inherited()
 	{
-		mapslot *p = static_cast<mapslot*>(next_slot);
+		mapslot *p = static_cast<mapslot*>(cur_slot);
 		if (p->next != p)
 		{
 			_msg_struct tmp = *this;
-			tmp.next_msg = 0;
+			tmp.cur_slot = p->next;
 			return wndproc::process(tmp);
 		}
 		return false;

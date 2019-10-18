@@ -22,22 +22,12 @@
 namespace wabc
 {
 	struct _msg_struct;
-	struct mapslot_node;
 
 	// --------------------------------------------------------------------
 
 	class wndproc
 	{
 		// --------------------------------------------------------------------
-
-		struct msg_guard
-		{
-			_msg_struct &msg;
-
-			explicit msg_guard(_msg_struct &m);
-
-			~msg_guard();
-		};
 
 	public:
 		static bool process_WM(_msg_struct &msg, WPARAM wParam = 0, size_t no_flag = 0);

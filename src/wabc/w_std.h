@@ -54,6 +54,39 @@ char(&ArraySizeHelper(const T(&array)[N]))[N];
 
 #define countof(array) (sizeof(ArraySizeHelper(array)))
 
+inline LONG int_atomic_inc(volatile LONG & x)
+{
+	return ::InterlockedIncrement(&x);
+}
+
+inline LONG int_atomic_dec(volatile LONG & x)
+{
+	return ::InterlockedDecrement(&x);
+}
+
+inline LONG int_atomic_get(volatile LONG & x)
+{
+	LONG result = 0;
+	::InterlockedExchange(&result, x);
+	return result;
+}
+
+// cas
+inline LONG cmpxchg(volatile LONG *dest, const LONG & compare, const LONG & new_)
+{
+#if _MSC_VER >= 1300
+	return ::InterlockedCompareExchange(dest, new_, compare);
+#else
+	return (LONG)::InterlockedCompareExchange((PVOID *)dest, (PVOID)(new_), (PVOID)(compare));
+#endif
+	//		if( *dest == compare)
+	//		{  
+	//			const LONG old= *dest;
+	//			*dest= new_; 
+	//			return old;
+	//		}
+	//		return *dest;
+}
 
 namespace wabc
 {
@@ -64,6 +97,10 @@ namespace wabc
 	typedef unsigned int uint32;
 	typedef unsigned int uint;
 	typedef unsigned __int64 uint64;
+
+	void * alloc(size_t new_size);
+	void * realloc(void *p, size_t new_size);
+	void free(void *);
 
 //#define WABC_DECLARE_ATTR(thisAttr) \
 //	union attr_t{ thisAttr }; \

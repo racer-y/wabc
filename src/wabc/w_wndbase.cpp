@@ -23,67 +23,7 @@ namespace wabc
 #endif
 
 	// --------------------------------------------------------------------
-	// mapslot_node
-	// --------------------------------------------------------------------
-
-	void mapslot_node::accept(_msg_struct *msg)
-	{
-		// FIXME - 这里假设msg_struct都是在堆栈上分配的，比较的时候按照所在地址的大小比较，
-		// 低地址在链表头，高地址在链表尾。这么做可以使msg_node减少一个成员变量。
-		// 若msg_struct是在堆上分配的，这一技巧立刻失效。
-		assert(msg);
-
-		msg->next_slot = this;
-		if (!cur_msg)
-		{
-			cur_msg = msg;
-		}
-		else
-		{
-			if (msg->next_msg)
-				accept(msg->next_msg);
-
-			if (msg < cur_msg)
-			{
-				// msg处于的堆栈比cur_msg深
-				msg->next_msg = cur_msg;
-				cur_msg = msg;
-			}
-			else
-			{
-				// 有序单向链表的插入算法
-				_msg_struct *p = cur_msg;
-				for (; p->next_msg; p = p->next_msg)
-				{
-					if (msg < p->next_msg)
-					{
-						msg->next_msg = p->next_msg;
-						p->next_msg = msg;
-						return;
-					}
-				}
-				p->next_msg = msg;
-			}
-		}
-	}
-
-	// --------------------------------------------------------------------
 	// mapslot
-	// --------------------------------------------------------------------
-
-	void mapslot::unmap()
-	{
-		if (cur_msg)
-		{
-			// 在当前mapslot指向的消息映射处理函数进行了析构，若不处理，
-			// 进入下一个mapslot立刻崩溃
-			assert(next != this && prior != this);
-			next->accept(cur_msg);
-			cur_msg = 0;
-		}
-		unlink();
-	}
-
 	// --------------------------------------------------------------------
 
 	void mapslot::assign(void *map_to, const msgmap_t *entries1, size_t n)
@@ -120,29 +60,6 @@ namespace wabc
 
 	wndbase::~wndbase()
 	{
-		mapslot_node *p = m_mapslot_head.next, *p1;
-		while (p != &m_mapslot_head)
-		{
-			p1 = p;
-			p = p->next;
-			if (p1->cur_msg)
-			{
-				// 若还有消息未处理，将其推向下一个节点，最终推向头节点
-				p->accept(p1->cur_msg);
-				p1->cur_msg = 0;
-			}
-
-			// 还有节点在其链表上，使其断开。
-			p1->next = p1->prior = p1;
-		}
-		
-		for (_msg_struct *p = m_mapslot_head.cur_msg; p; p = p->next_msg)
-		{
-			assert(p->next_slot == &m_mapslot_head);
-			// 将其设0，使窗口过程不再调用msg_defproc()函数，避免崩溃
-			p->wnd = 0;
-		}
-
 		if (m_hWnd)
 			::DestroyWindow(m_hWnd);
 
@@ -311,8 +228,7 @@ namespace wabc
 		msg.wParam = reinterpret_cast<WPARAM>(&dc);
 		msg.lParam = reinterpret_cast<LPARAM>(&rtClip);
 		msg.result = context;
-		msg.next_slot = m_mapslot_head.next;
-		msg.next_msg = 0;
+		msg.cur_slot = m_mapslot_head->next;
 		msg.wnd = this;
 		return wndproc::process(msg);
 	}
