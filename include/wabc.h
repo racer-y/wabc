@@ -5,7 +5,7 @@
 #ifdef _DEBUG
 #pragma comment(lib, "D:\\Racer\\wabc\\dlib\\wabc.lib")
 #else
-#pragma comment(lib, "..\\lib\\wabc.lib")
+#pragma comment(lib, "D:\\Racer\\wabc\\lib\\wabc.lib")
 #endif
 
 #else

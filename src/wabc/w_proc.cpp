@@ -344,6 +344,8 @@ namespace wabc
 			//		::DefDlgProc ( hwnd,message,wParam,lParam );
 			return false;
 
+		INT_PTR ret;
+
 		dialog::create_param &param = *reinterpret_cast<dialog::create_param *>(lParam);
 
 		param.dlg->m_hWnd = hWnd;
@@ -353,9 +355,15 @@ namespace wabc
 
 		param.dlg->dialog_create(param);
 		if (param.dlg->m_tab_ctrls.size() > 0)
+		{
 			::SetFocus(param.dlg->m_tab_ctrls[0]);
-		
-		return proc(HWND(param.dlg), message, wParam, lParam);
+			ret = FALSE;
+		}
+		else
+			ret = TRUE;
+
+		proc(HWND(param.dlg), message, wParam, lParam);
+		return ret;
 	}
 
 	// --------------------------------------------------------------------
